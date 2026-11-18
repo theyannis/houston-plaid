@@ -1,0 +1,121 @@
+{
+  "schema_version": 2,
+  "name": "Plaid",
+  "files": [
+    "connector.luau"
+  ],
+  "icon": "icon.svg",
+  "config": {
+    "environment": {
+      "default": "production",
+      "description": "Plaid keeps separate secrets for Sandbox (test data) and Production (live bank data). Use the secret that matches this choice.",
+      "label": "Environment",
+      "options": [
+        {
+          "label": "Production",
+          "value": "production"
+        },
+        {
+          "label": "Sandbox",
+          "value": "sandbox"
+        }
+      ],
+      "required": true,
+      "type": "string"
+    }
+  },
+  "auth": {
+    "keys": {
+      "config": {
+        "client_id": {
+          "label": "Client ID",
+          "order": 1,
+          "required": true,
+          "type": "string"
+        },
+        "secret": {
+          "label": "Secret",
+          "order": 2,
+          "required": true,
+          "type": "secret"
+        }
+      },
+      "label": "Plaid client ID and secret",
+      "type": "manual"
+    }
+  },
+  "proxy": [
+    {
+      "action": {
+        "headers": {
+          "set": {
+            "PLAID-CLIENT-ID": "{{auth.keys.client_id}}",
+            "PLAID-SECRET": "{{auth.keys.secret}}"
+          }
+        }
+      },
+      "if": "{{ is config.environment \"production\" }}",
+      "match": {
+        "host": [
+          "production.plaid.com"
+        ],
+        "method": [
+          "POST"
+        ],
+        "path": [
+          "/accounts/balance/get",
+          "/accounts/get",
+          "/auth/get",
+          "/identity/get",
+          "/institutions/get",
+          "/institutions/get_by_id",
+          "/institutions/search",
+          "/investments/holdings/get",
+          "/investments/transactions/get",
+          "/item/get",
+          "/liabilities/get",
+          "/transactions/get",
+          "/transactions/recurring/get",
+          "/transactions/sync"
+        ],
+        "protocol": "http"
+      }
+    },
+    {
+      "action": {
+        "headers": {
+          "set": {
+            "PLAID-CLIENT-ID": "{{auth.keys.client_id}}",
+            "PLAID-SECRET": "{{auth.keys.secret}}"
+          }
+        }
+      },
+      "if": "{{ is config.environment \"sandbox\" }}",
+      "match": {
+        "host": [
+          "sandbox.plaid.com"
+        ],
+        "method": [
+          "POST"
+        ],
+        "path": [
+          "/accounts/balance/get",
+          "/accounts/get",
+          "/auth/get",
+          "/identity/get",
+          "/institutions/get",
+          "/institutions/get_by_id",
+          "/institutions/search",
+          "/investments/holdings/get",
+          "/investments/transactions/get",
+          "/item/get",
+          "/liabilities/get",
+          "/transactions/get",
+          "/transactions/recurring/get",
+          "/transactions/sync"
+        ],
+        "protocol": "http"
+      }
+    }
+  ]
+}
