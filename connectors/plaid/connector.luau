@@ -2,7 +2,6 @@
 type Options = {[string]: any}
 type Check = (any, string) -> any
 type Spec = {fields: {[string]: Check}, required: {string}}
-type Endpoint = {path: string, spec: Spec, summary: string, example: Options}
 
 local API = if config.environment == "sandbox" then "https://sandbox.plaid.com" else "https://production.plaid.com"
 local VERSION = "2020-09-14"
@@ -97,111 +96,6 @@ local function object(spec: {[string]: Check}, name: string): Check
 	end
 end
 
-local ACCOUNT_OPTIONS = {options = object({account_ids = accountIds}, "options")}
-
-local endpoints: {[string]: Endpoint} = {
-	getAccounts = {
-		path = "/accounts/get",
-		summary = "List the accounts of one Item with cached balances.",
-		spec = {fields = {access_token = accessToken, options = ACCOUNT_OPTIONS.options}, required = {"access_token"}},
-		example = {access_token = "access-sandbox-123"},
-	},
-	getBalance = {
-		path = "/accounts/balance/get",
-		summary = "Fetch real-time balances from the institution. Plaid may bill each call; prefer getAccounts for cached balances.",
-		spec = {fields = {access_token = accessToken, options = object({account_ids = accountIds, min_last_updated_datetime = dateTime}, "options")},
-			required = {"access_token"}},
-		example = {access_token = "access-sandbox-123", options = {account_ids = {"account-1"}}},
-	},
-	syncTransactions = {
-		path = "/transactions/sync",
-		summary = "Fetch one page of added, modified and removed transactions after a cursor. Omit cursor for the first page.",
-		spec = {fields = {access_token = accessToken, cursor = text(256), count = integer(1, 500), options = object({
-			include_original_description = flag, include_personal_finance_category = flag, days_requested = integer(1, 730),
-			account_id = text(256), include_logo_and_counterparty_beta = flag}, "options")}, required = {"access_token"}},
-		example = {access_token = "access-sandbox-123", count = 100},
-	},
-	getTransactions = {
-		path = "/transactions/get",
-		summary = "List transactions in a date range, one page at a time with options.count and options.offset.",
-		spec = {fields = {access_token = accessToken, start_date = date, end_date = date, options = object({
-			account_ids = accountIds, count = integer(1, 500), offset = integer(0, 1000000),
-			include_original_description = flag, include_personal_finance_category = flag}, "options")},
-			required = {"access_token", "start_date", "end_date"}},
-		example = {access_token = "access-sandbox-123", start_date = "2026-01-01", end_date = "2026-01-31", options = {count = 100, offset = 0}},
-	},
-	getRecurringTransactions = {
-		path = "/transactions/recurring/get",
-		summary = "List recurring inflow and outflow streams detected for the given accounts.",
-		spec = {fields = {access_token = accessToken, account_ids = accountIds, options = object({include_personal_finance_category = flag}, "options")},
-			required = {"access_token", "account_ids"}},
-		example = {access_token = "access-sandbox-123", account_ids = {"account-1"}},
-	},
-	getAuth = {
-		path = "/auth/get",
-		summary = "Fetch account and routing numbers. Sensitive: do not log or save the result.",
-		spec = {fields = {access_token = accessToken, options = ACCOUNT_OPTIONS.options}, required = {"access_token"}},
-		example = {access_token = "access-sandbox-123"},
-	},
-	getIdentity = {
-		path = "/identity/get",
-		summary = "Fetch account holder names, addresses, emails and phone numbers. Sensitive: do not log or save the result.",
-		spec = {fields = {access_token = accessToken, options = ACCOUNT_OPTIONS.options}, required = {"access_token"}},
-		example = {access_token = "access-sandbox-123"},
-	},
-	getHoldings = {
-		path = "/investments/holdings/get",
-		summary = "List investment holdings and securities.",
-		spec = {fields = {access_token = accessToken, options = ACCOUNT_OPTIONS.options}, required = {"access_token"}},
-		example = {access_token = "access-sandbox-123"},
-	},
-	getInvestmentTransactions = {
-		path = "/investments/transactions/get",
-		summary = "List investment transactions in a date range, one page at a time with options.count and options.offset.",
-		spec = {fields = {access_token = accessToken, start_date = date, end_date = date, options = object({
-			account_ids = accountIds, count = integer(1, 500), offset = integer(0, 1000000)}, "options")},
-			required = {"access_token", "start_date", "end_date"}},
-		example = {access_token = "access-sandbox-123", start_date = "2026-01-01", end_date = "2026-01-31"},
-	},
-	getLiabilities = {
-		path = "/liabilities/get",
-		summary = "Fetch credit card, student loan and mortgage liabilities.",
-		spec = {fields = {access_token = accessToken, options = ACCOUNT_OPTIONS.options}, required = {"access_token"}},
-		example = {access_token = "access-sandbox-123"},
-	},
-	getItem = {
-		path = "/item/get",
-		summary = "Fetch an Item's status, institution, products and consent expiration.",
-		spec = {fields = {access_token = accessToken}, required = {"access_token"}},
-		example = {access_token = "access-sandbox-123"},
-	},
-	getInstitution = {
-		path = "/institutions/get_by_id",
-		summary = "Fetch one institution by ID.",
-		spec = {fields = {institution_id = text(64), country_codes = countryCodes, options = object({
-			include_optional_metadata = flag, include_status = flag, include_auth_metadata = flag,
-			include_payment_initiation_metadata = flag}, "options")}, required = {"institution_id", "country_codes"}},
-		example = {institution_id = "ins_109508", country_codes = {"US"}},
-	},
-	searchInstitutions = {
-		path = "/institutions/search",
-		summary = "Search institutions by name for the given products.",
-		spec = {fields = {query = text(256), products = list(20, text(64)), country_codes = countryCodes, options = object({
-			oauth = flag, include_optional_metadata = flag, include_auth_metadata = flag,
-			include_payment_initiation_metadata = flag}, "options")}, required = {"query", "products", "country_codes"}},
-		example = {query = "First Platypus", products = {"transactions"}, country_codes = {"US"}},
-	},
-	getInstitutions = {
-		path = "/institutions/get",
-		summary = "List institutions one page at a time with count and offset.",
-		spec = {fields = {count = integer(1, 500), offset = integer(0, 1000000), country_codes = countryCodes, options = object({
-			products = list(20, text(64)), routing_numbers = list(100, text(32)), oauth = flag, include_optional_metadata = flag,
-			include_auth_metadata = flag, include_payment_initiation_metadata = flag}, "options")},
-			required = {"count", "offset", "country_codes"}},
-		example = {count = 50, offset = 0, country_codes = {"US"}},
-	},
-}
-
 -- Plaid error bodies carry error_type, error_code, error_message and request_id; the access token is never echoed back.
 local function failure(name: string, response: HttpResponse, token: string?): never
 	local status = response.statusCode
@@ -240,16 +134,16 @@ local function invalid(name: string, status: number): never
 		message = "Plaid returned an unexpected answer"})
 end
 
-local function request(name: string, endpoint: Endpoint, input: any): any
+local function request(name: string, path: string, spec: Spec, input: any): any
 	assert(type(input) == "table", name .. " must be called with an options table")
-	for _, field in endpoint.spec.required do
+	for _, field in spec.required do
 		assert(input[field] ~= nil, name .. " requires " .. field)
 	end
-	local body = fields(input, endpoint.spec.fields, name, "")
+	local body = fields(input, spec.fields, name, "")
 	local token: string? = body.access_token
 	local response = await(http.request({
 		method = "POST",
-		url = API .. endpoint.path,
+		url = API .. path,
 		headers = {["Content-Type"] = {"application/json"}, Accept = {"application/json"}, ["Plaid-Version"] = {VERSION}},
 		body = json.encode(body),
 	}))
@@ -266,31 +160,210 @@ local function request(name: string, endpoint: Endpoint, input: any): any
 	return value
 end
 
-local ACCESS_TOKEN_NOTE = "Plaid reads each Item through its access_token, which is a call argument here because Plaid accepts it only in the request body; "
-	.. "Houston supplies the client ID and secret. Never log the token or put it in saved actions or memories."
+-- JSON Schema pieces shared by the help records below.
+local TOKEN = {type = "string", minLength = 1, maxLength = 256, description = "The Item's Plaid access token."}
+local ACCOUNT_IDS = {type = "array", items = {type = "string", minLength = 1}, minItems = 1, maxItems = 100, description = "Limit the result to these account IDs."}
+local DATE = {type = "string", pattern = "^\\d{4}-\\d{2}-\\d{2}$", description = "A date written YYYY-MM-DD."}
+local COUNTRIES = {type = "array", items = {type = "string", pattern = "^[A-Z]{2}$"}, minItems = 1, maxItems = 20, description = "Two-letter country codes such as US."}
+local FLAG = {type = "boolean"}
+local PAGE_SIZE = {type = "integer", minimum = 1, maximum = 500}
+local OFFSET = {type = "integer", minimum = 0, maximum = 1000000}
+local ACCOUNT_OPTIONS_SCHEMA = {type = "object", additionalProperties = false, properties = {account_ids = ACCOUNT_IDS}}
+local ACCOUNT_OPTIONS = {account_ids = accountIds}
 
 local exports: {[string]: any} = {}
-local functions: {[string]: any} = {}
-for name, endpoint in endpoints do
-	exports[name] = function(args: any): any return request(name, endpoint, args) end
-	local properties: {[string]: any} = {}
-	for field in endpoint.spec.fields do properties[field] = {} end
-	functions[name] = {
-		description = endpoint.summary .. " Required: " .. table.concat(endpoint.spec.required, ", ") .. ".",
-		inputSchema = {type = "object", properties = properties, required = endpoint.spec.required, additionalProperties = false,
-			examples = {endpoint.example}},
-		annotations = {readOnlyHint = true},
-	}
-end
-
 exports.help = {
 	text = "Plaid API 2020-09-14, read-only (" .. config.environment .. "). Each function takes one options table with Plaid's native field names and returns Plaid's JSON unchanged. "
-		.. ACCESS_TOKEN_NOTE
-		.. " Connector calls return completed values: call plaid.getAccounts({...}) directly, without await. "
+		.. "Plaid reads each Item through its access_token, which is a call argument here because Plaid accepts it only in the request body; Houston supplies the client ID and secret. Never log the token or put it in saved actions or memories. "
+		.. "Connector calls return completed values: call plaid.getAccounts({...}) directly, without await. "
 		.. "Pages: syncTransactions returns next_cursor and has_more; pass next_cursor as cursor until has_more is false. getTransactions and getInvestmentTransactions page with options.count (1 to 500) and options.offset against total_transactions. "
 		.. "Dates are YYYY-MM-DD. getBalance asks the institution live and Plaid may bill it; getAccounts returns cached balances. "
 		.. "A PRODUCT_NOT_READY error means Plaid is still loading the Item's data and is retryable. Errors carry Plaid's error_type, error_code and request_id; ITEM_LOGIN_REQUIRED means the Item's owner must reconnect it in your Plaid Link flow. "
 		.. "Link tokens, token exchange, Item removal, payments, transfers and webhooks are not available. Calls make no automatic retries.",
-	functions = functions,
+	functions = {},
 }
+
+exports.help.functions.getAccounts = {
+	description = "List the accounts of one Item with cached balances.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token"},
+		properties = {access_token = TOKEN, options = ACCOUNT_OPTIONS_SCHEMA},
+		examples = {{access_token = "access-sandbox-123", options = {account_ids = {"account-1"}}}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getAccounts(args: any): any
+	return request("getAccounts", "/accounts/get", {fields = {access_token = accessToken, options = object(ACCOUNT_OPTIONS, "options")}, required = {"access_token"}}, args)
+end
+
+exports.help.functions.getBalance = {
+	description = "Fetch real-time balances from the institution. Plaid may bill each call; prefer getAccounts for cached balances.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token"},
+		properties = {access_token = TOKEN, options = {type = "object", additionalProperties = false,
+			properties = {account_ids = ACCOUNT_IDS, min_last_updated_datetime = {type = "string", description = "ISO 8601 date-time such as 2026-01-31T12:00:00Z."}}}},
+		examples = {{access_token = "access-sandbox-123", options = {account_ids = {"account-1"}}}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getBalance(args: any): any
+	return request("getBalance", "/accounts/balance/get", {fields = {access_token = accessToken,
+		options = object({account_ids = accountIds, min_last_updated_datetime = dateTime}, "options")}, required = {"access_token"}}, args)
+end
+
+exports.help.functions.syncTransactions = {
+	description = "Fetch one page of added, modified and removed transactions after a cursor. Omit cursor for the first page; pass the returned next_cursor until has_more is false.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token"},
+		properties = {access_token = TOKEN, cursor = {type = "string", minLength = 1, maxLength = 256}, count = PAGE_SIZE,
+			options = {type = "object", additionalProperties = false, properties = {include_original_description = FLAG,
+				include_personal_finance_category = FLAG, days_requested = {type = "integer", minimum = 1, maximum = 730},
+				account_id = {type = "string", minLength = 1}, include_logo_and_counterparty_beta = FLAG}}},
+		examples = {{access_token = "access-sandbox-123", count = 100}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.syncTransactions(args: any): any
+	return request("syncTransactions", "/transactions/sync", {fields = {access_token = accessToken, cursor = text(256), count = integer(1, 500), options = object({
+		include_original_description = flag, include_personal_finance_category = flag, days_requested = integer(1, 730),
+		account_id = text(256), include_logo_and_counterparty_beta = flag}, "options")}, required = {"access_token"}}, args)
+end
+
+exports.help.functions.getTransactions = {
+	description = "List transactions in a date range, one page at a time with options.count and options.offset against total_transactions.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token", "start_date", "end_date"},
+		properties = {access_token = TOKEN, start_date = DATE, end_date = DATE,
+			options = {type = "object", additionalProperties = false, properties = {account_ids = ACCOUNT_IDS, count = PAGE_SIZE, offset = OFFSET,
+				include_original_description = FLAG, include_personal_finance_category = FLAG}}},
+		examples = {{access_token = "access-sandbox-123", start_date = "2026-01-01", end_date = "2026-01-31", options = {count = 100, offset = 0}}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getTransactions(args: any): any
+	return request("getTransactions", "/transactions/get", {fields = {access_token = accessToken, start_date = date, end_date = date, options = object({
+		account_ids = accountIds, count = integer(1, 500), offset = integer(0, 1000000),
+		include_original_description = flag, include_personal_finance_category = flag}, "options")},
+		required = {"access_token", "start_date", "end_date"}}, args)
+end
+
+exports.help.functions.getRecurringTransactions = {
+	description = "List recurring inflow and outflow streams detected for the given accounts.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token", "account_ids"},
+		properties = {access_token = TOKEN, account_ids = ACCOUNT_IDS,
+			options = {type = "object", additionalProperties = false, properties = {include_personal_finance_category = FLAG}}},
+		examples = {{access_token = "access-sandbox-123", account_ids = {"account-1"}}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getRecurringTransactions(args: any): any
+	return request("getRecurringTransactions", "/transactions/recurring/get", {fields = {access_token = accessToken, account_ids = accountIds,
+		options = object({include_personal_finance_category = flag}, "options")}, required = {"access_token", "account_ids"}}, args)
+end
+
+exports.help.functions.getAuth = {
+	description = "Fetch account and routing numbers. Sensitive: do not log or save the result.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token"},
+		properties = {access_token = TOKEN, options = ACCOUNT_OPTIONS_SCHEMA}, examples = {{access_token = "access-sandbox-123"}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getAuth(args: any): any
+	return request("getAuth", "/auth/get", {fields = {access_token = accessToken, options = object(ACCOUNT_OPTIONS, "options")}, required = {"access_token"}}, args)
+end
+
+exports.help.functions.getIdentity = {
+	description = "Fetch account holder names, addresses, emails and phone numbers. Sensitive: do not log or save the result.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token"},
+		properties = {access_token = TOKEN, options = ACCOUNT_OPTIONS_SCHEMA}, examples = {{access_token = "access-sandbox-123"}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getIdentity(args: any): any
+	return request("getIdentity", "/identity/get", {fields = {access_token = accessToken, options = object(ACCOUNT_OPTIONS, "options")}, required = {"access_token"}}, args)
+end
+
+exports.help.functions.getHoldings = {
+	description = "List investment holdings and securities.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token"},
+		properties = {access_token = TOKEN, options = ACCOUNT_OPTIONS_SCHEMA}, examples = {{access_token = "access-sandbox-123"}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getHoldings(args: any): any
+	return request("getHoldings", "/investments/holdings/get", {fields = {access_token = accessToken, options = object(ACCOUNT_OPTIONS, "options")}, required = {"access_token"}}, args)
+end
+
+exports.help.functions.getInvestmentTransactions = {
+	description = "List investment transactions in a date range, one page at a time with options.count and options.offset.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token", "start_date", "end_date"},
+		properties = {access_token = TOKEN, start_date = DATE, end_date = DATE,
+			options = {type = "object", additionalProperties = false, properties = {account_ids = ACCOUNT_IDS, count = PAGE_SIZE, offset = OFFSET}}},
+		examples = {{access_token = "access-sandbox-123", start_date = "2026-01-01", end_date = "2026-01-31"}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getInvestmentTransactions(args: any): any
+	return request("getInvestmentTransactions", "/investments/transactions/get", {fields = {access_token = accessToken, start_date = date, end_date = date,
+		options = object({account_ids = accountIds, count = integer(1, 500), offset = integer(0, 1000000)}, "options")},
+		required = {"access_token", "start_date", "end_date"}}, args)
+end
+
+exports.help.functions.getLiabilities = {
+	description = "Fetch credit card, student loan and mortgage liabilities.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token"},
+		properties = {access_token = TOKEN, options = ACCOUNT_OPTIONS_SCHEMA}, examples = {{access_token = "access-sandbox-123"}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getLiabilities(args: any): any
+	return request("getLiabilities", "/liabilities/get", {fields = {access_token = accessToken, options = object(ACCOUNT_OPTIONS, "options")}, required = {"access_token"}}, args)
+end
+
+exports.help.functions.getItem = {
+	description = "Fetch an Item's status, institution, products and consent expiration.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"access_token"},
+		properties = {access_token = TOKEN}, examples = {{access_token = "access-sandbox-123"}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getItem(args: any): any
+	return request("getItem", "/item/get", {fields = {access_token = accessToken}, required = {"access_token"}}, args)
+end
+
+exports.help.functions.getInstitution = {
+	description = "Fetch one institution by ID.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"institution_id", "country_codes"},
+		properties = {institution_id = {type = "string", minLength = 1, maxLength = 64}, country_codes = COUNTRIES,
+			options = {type = "object", additionalProperties = false, properties = {include_optional_metadata = FLAG, include_status = FLAG,
+				include_auth_metadata = FLAG, include_payment_initiation_metadata = FLAG}}},
+		examples = {{institution_id = "ins_109508", country_codes = {"US"}}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getInstitution(args: any): any
+	return request("getInstitution", "/institutions/get_by_id", {fields = {institution_id = text(64), country_codes = countryCodes, options = object({
+		include_optional_metadata = flag, include_status = flag, include_auth_metadata = flag,
+		include_payment_initiation_metadata = flag}, "options")}, required = {"institution_id", "country_codes"}}, args)
+end
+
+exports.help.functions.searchInstitutions = {
+	description = "Search institutions by name for the given products.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"query", "products", "country_codes"},
+		properties = {query = {type = "string", minLength = 1, maxLength = 256},
+			products = {type = "array", items = {type = "string", minLength = 1}, minItems = 1, maxItems = 20, description = "Plaid products such as transactions."},
+			country_codes = COUNTRIES,
+			options = {type = "object", additionalProperties = false, properties = {oauth = FLAG, include_optional_metadata = FLAG,
+				include_auth_metadata = FLAG, include_payment_initiation_metadata = FLAG}}},
+		examples = {{query = "First Platypus", products = {"transactions"}, country_codes = {"US"}}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.searchInstitutions(args: any): any
+	return request("searchInstitutions", "/institutions/search", {fields = {query = text(256), products = list(20, text(64)), country_codes = countryCodes, options = object({
+		oauth = flag, include_optional_metadata = flag, include_auth_metadata = flag,
+		include_payment_initiation_metadata = flag}, "options")}, required = {"query", "products", "country_codes"}}, args)
+end
+
+exports.help.functions.getInstitutions = {
+	description = "List institutions one page at a time with count and offset.",
+	inputSchema = {type = "object", additionalProperties = false, required = {"count", "offset", "country_codes"},
+		properties = {count = PAGE_SIZE, offset = OFFSET, country_codes = COUNTRIES,
+			options = {type = "object", additionalProperties = false, properties = {
+				products = {type = "array", items = {type = "string", minLength = 1}, minItems = 1, maxItems = 20},
+				routing_numbers = {type = "array", items = {type = "string", minLength = 1}, minItems = 1, maxItems = 100},
+				oauth = FLAG, include_optional_metadata = FLAG, include_auth_metadata = FLAG, include_payment_initiation_metadata = FLAG}}},
+		examples = {{count = 50, offset = 0, country_codes = {"US"}}}},
+	annotations = {readOnlyHint = true},
+}
+function exports.getInstitutions(args: any): any
+	return request("getInstitutions", "/institutions/get", {fields = {count = integer(1, 500), offset = integer(0, 1000000), country_codes = countryCodes, options = object({
+		products = list(20, text(64)), routing_numbers = list(100, text(32)), oauth = flag, include_optional_metadata = flag,
+		include_auth_metadata = flag, include_payment_initiation_metadata = flag}, "options")},
+		required = {"count", "offset", "country_codes"}}, args)
+end
+
 return exports
